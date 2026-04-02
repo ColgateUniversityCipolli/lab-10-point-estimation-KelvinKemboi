@@ -235,7 +235,7 @@ Created a function `loglik.altbinom` to find the log-likelihood for Altham's Mul
 
 # function that finds the log likelihood
 loglik.altbinom <- function(x, size, prob, theta){
-  sum(log(daltbinom(x, size = size, prob = prob, theta = theta)))
+  sum(log(daltbinom(x, size=size, prob=prob, thetatheta)))
 }
 ```
 
@@ -276,6 +276,30 @@ In `pdc2024.csv`, I have provided the data for the 2024 Premier League season. T
   
   Summarize the data. What do the data tell us about the breakdown of the results?
 
+**Solution**
+
+```{r}
+#| size: scriptsize
+
+# read csv file
+prem.dat<- read_csv("pdc2024.csv")
+
+# clean dat
+prem.dat.cleaned <-prem.dat |>
+  filter(!is.na(Score)) |> # only none null values
+  filter(Score != "w/o") |>
+  filter(Night <= 16) |> # nights 1-16
+  separate(Score, into=c("WinnerLegs","LoserLegs"), sep="-") # sep
+
+head(prem.dat.cleaned)
+
+summary.dat <- prem.dat.cleaned |>
+  count(WinnerLegs, LoserLegs) |>
+  mutate(Proportion=n/sum(n))
+
+(summary.dat)
+```
+
 ## Altham's Multiplicative Binomial Distribution
 For each player in the 2024 season, use the number of legs won in each match to compute maximium likelihood estimates for $p$ and $\theta$. \
 **Note**: The "for each" here can be done more efficiently with a function or a loop!
@@ -285,6 +309,25 @@ For each player in the 2024 season, use the number of legs won in each match to 
 **Note:** In Lecture on Monday, we used transformations to restrict how `optim()` searches the parameter space. For example, here, you might consider
 `p <- 1/(1+exp(-par[1]))` and `theta <- exp(par[2])`.
 * Make comments about the MLEs in the context of the standings.
+
+**Solution**
+
+```{r}
+# size: scriptsize
+player<-"Peter Wright"
+
+# Matches
+matches<-prem.dat.cleaned |>
+  filter(Winner==player|Loser==player)
+(matches)
+
+# legs won
+legs_won<-if_else(matches$Winner==player, matches$WinnerLegs, matches$LoserLegs)
+(legs_won)
+
+# MLE
+loglik.altbinom
+```
 
 ## Altham's Multiplicative Beta Binomial Distribution
 

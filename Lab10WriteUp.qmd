@@ -228,9 +228,12 @@ Write a function that computes the log-likelihood for Altham's Multiplicative Bi
 
 **Solution**
 
+Created a function `loglik.altbinom` to find the log-likelihood for Altham's Multiplicative Binomial Distribution
+
 ```{r}
 # size: scriptsize
 
+# function that finds the log likelihood
 loglik.altbinom <- function(x, size, prob, theta){
   sum(log(daltbinom(x, size = size, prob = prob, theta = theta)))
 }

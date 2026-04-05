@@ -331,7 +331,7 @@ l.likely<- function(par, x, size, neg = FALSE){
   theta<- exp(par[2])
 
   # Compute log-likelihood using the Altham binom PMF
-  ll<- sum(log(daltbinom(x = x, size = size, prob = p, theta = theta)))
+  ll<- sum(log(daltbinom(x=x, size=size, prob=p, theta=theta)))
 
   # Return negative log-likelihood when neg=TRUE in optim
   ifelse(neg, -ll, ll)
@@ -361,12 +361,14 @@ for(i in 1:length(players)){
 # store results in tibble and round vals to 3dp
 results <- tibble(
   Player=players,
-  p_estims=round(p_estims,3),
-  theta_estims=round(theta_estims,3)
+  p=round(p_estims,3),
+  theta=round(theta_estims,3)
 )
 
 (results)
 ```
+
+**Comments**
 
 ## Altham's Multiplicative Beta Binomial Distribution
 
@@ -385,6 +387,69 @@ For each player in the 2024 season, use the number of legs won in each match to 
 \end{align*}
 * Make comments about the MLEs in the context of the standings.\
 **Note**: The players alternate who throws first in a leg has the mathematical "head start" to reach a finish before their opponent can take another turn. Players alternate who throws first with each leg.
+
+**Solution**
+
+Used a loop to estimate alpha, beta, and theta values for each player using Altham’s Multiplicative Beta-Binom. I created a vector of legs won across matches for each player and computed negative log likelihood. I also computed the mean and standard deviation of the corresponding Beta distribution and summarized the results in a table for all players.
+
+```{r}
+# size: scriptsize
+# variables to store values
+alpha_estims<- rep(NA, length(players))
+beta_estims<- rep(NA, length(players))
+theta_estims<- rep(NA, length(players))
+beta_mean<- rep(NA, length(players))
+beta_sd<- rep(NA, length(players))
+
+# negative log-likelihood for Altham multiplicative beta-binom
+l.likely.bb <- function(par, x, neg = FALSE){
+  # transformations
+  alpha <- exp(par[1])
+  beta  <- exp(par[2])
+  theta <- exp(par[3])
+  
+  # calculate prob for 0:6
+  probs <- sapply(0:6, daltbbinom.single, size=11, alpha=alpha, beta=beta, theta=theta)
+  # log-likelihood
+  ll<- sum(log(probs[x + 1]))
+  ifelse(neg, -ll, ll)
+}
+
+# loop through players
+for(i in 1:length(players)){
+  player <- players[i]
+
+  # matches
+  matches <- prem.dat.cleaned |>
+    filter(Winner == player | Loser == player)
+
+  # legs won
+  legs_won <- as.numeric(if_else(matches$Winner==player, matches$WinnerLegs, matches$LoserLegs))
+  # fit model
+  fit <- optim( par=c(0, 0, 0), fn=l.likely.bb, x=legs_won, neg=TRUE)
+
+  alpha_estims[i]<- exp(fit$par[1])
+  beta_estims[i]<- exp(fit$par[2])
+  theta_estims[i]<- exp(fit$par[3])
+
+  # beta mean and sd
+  beta_mean[i]<- alpha_estims[i]/(alpha_estims[i] + beta_estims[i])
+  beta_sd[i]<- sqrt((alpha_estims[i]*beta_estims[i])/
+                     ((alpha_estims[i] + beta_estims[i])^2 *
+                      (alpha_estims[i] + beta_estims[i] + 1)))
+}
+
+# results tibble
+results<- tibble(
+  Player=players,
+  alpha=round(alpha_estims, 3),
+  beta=round(beta_estims, 3),
+  theta=round(theta_estims, 3),
+  Mean=round(beta_mean, 3),
+  SD=round(beta_sd, 3)
+)
+results
+```
 
 ## Executive Summary
 Summarize the work you've done here to provide a brief (200-300 word) data-driven summary of the 2024 Premier League season using your work in Lab 10. Your summary should be professional, clear, and all claims should be corroborated with statistical support.

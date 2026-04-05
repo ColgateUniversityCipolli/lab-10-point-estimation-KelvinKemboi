@@ -278,6 +278,8 @@ In `pdc2024.csv`, I have provided the data for the 2024 Premier League season. T
 
 **Solution**
 
+Read the csv file and cleaned the data by removing matches with missing scores, w/o, and keeping only nights 1–16 then separated the Score column into WinnerLegs and LoserLegs. Summarized the resulting data.
+
 ```{r}
 #| size: scriptsize
 
@@ -287,15 +289,15 @@ prem.dat<- read_csv("pdc2024.csv")
 # clean dat
 prem.dat.cleaned <-prem.dat |>
   filter(!is.na(Score)) |> # only none null values
-  filter(Score != "w/o") |>
+  filter(Score != "w/o") |> # remove values shown as w/o
   filter(Night <= 16) |> # nights 1-16
-  separate(Score, into=c("WinnerLegs","LoserLegs"), sep="-") # sep
+  separate(Score, into=c("WinnerLegs","LoserLegs"), sep="-") # seperated by -
 
 head(prem.dat.cleaned)
 # summary
 summary.dat <- prem.dat.cleaned |>
-  count(WinnerLegs, LoserLegs) |>
-  mutate(Proportion=n/sum(n))
+  count(WinnerLegs, LoserLegs) |> # frequency
+  mutate(Proportion=n/sum(n)) # proportion
 
 (summary.dat)
 ```

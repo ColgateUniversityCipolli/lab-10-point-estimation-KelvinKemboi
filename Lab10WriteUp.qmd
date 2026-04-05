@@ -235,7 +235,7 @@ Created a function `loglik.altbinom` to find the log-likelihood for Altham's Mul
 
 # function that finds the log likelihood
 loglik.altbinom <- function(x, size, prob, theta){
-  sum(log(daltbinom(x, size=size, prob=prob, thetatheta)))
+  sum(log(daltbinom(x, size=size, prob=prob, theta=theta)))
 }
 ```
 
@@ -292,7 +292,7 @@ prem.dat.cleaned <-prem.dat |>
   separate(Score, into=c("WinnerLegs","LoserLegs"), sep="-") # sep
 
 head(prem.dat.cleaned)
-
+# summary
 summary.dat <- prem.dat.cleaned |>
   count(WinnerLegs, LoserLegs) |>
   mutate(Proportion=n/sum(n))
@@ -312,21 +312,58 @@ For each player in the 2024 season, use the number of legs won in each match to 
 
 **Solution**
 
+Created a vector of all players and used looped through it to compute the MLE for each player. For each player, I filtered the matches they played, made a vector of number of legs won, and calculated total legs in each match then used optim() with transformed parameters to estimate `p` and `theta`.
+
 ```{r}
 # size: scriptsize
-player<-"Peter Wright"
+players<- unique(c(prem.dat.cleaned$Winner, prem.dat.cleaned$Loser))
 
-# Matches
-matches<-prem.dat.cleaned |>
-  filter(Winner==player|Loser==player)
-(matches)
+# variables to store values
+p_estims<- rep(NA, length(players))
+theta_estims<- rep(NA, length(players))
 
-# legs won
-legs_won<-if_else(matches$Winner==player, matches$WinnerLegs, matches$LoserLegs)
-(legs_won)
+# Define negative log-likelihood function for Altham's multiplicative binom
+l.likely<- function(par, x, size, neg = FALSE){
+  # transformations for parameters
+  p<- 1 / (1 + exp(-par[1]))
+  theta<- exp(par[2])
 
-# MLE
-loglik.altbinom
+  # Compute log-likelihood using the Altham binom PMF
+  ll<- sum(log(daltbinom(x = x, size = size, prob = p, theta = theta)))
+
+  # Return negative log-likelihood when neg=TRUE in optim
+  ifelse(neg, -ll, ll)
+}
+
+# loop through each player
+for(i in 1:length(players)){
+  player<-players[i]
+  
+  # Matches
+  matches<-prem.dat.cleaned |>
+    filter(Winner==player|Loser==player)
+  
+  # legs won by player
+  legs_won<-as.numeric(if_else(matches$Winner==player, matches$WinnerLegs, matches$LoserLegs))
+  
+  # total legs by player
+  total_legs<- as.numeric(matches$WinnerLegs) + as.numeric(matches$LoserLegs)
+  
+  # Use optim() to find the parameter values
+  fit<- optim(par=c(0,0), fn=l.likely, x=legs_won, size=total_legs, neg=TRUE)
+  # Convert the optimized parameters back to the original scale
+  p_estims[i]<- 1/(1 + exp(-fit$par[1]))
+  theta_estims[i]<- exp(fit$par[2])
+}
+
+# store results in tibble and round vals to 3dp
+results <- tibble(
+  Player=players,
+  p_estims=round(p_estims,3),
+  theta_estims=round(theta_estims,3)
+)
+
+(results)
 ```
 
 ## Altham's Multiplicative Beta Binomial Distribution

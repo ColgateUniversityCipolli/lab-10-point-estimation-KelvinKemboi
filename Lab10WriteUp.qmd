@@ -176,6 +176,7 @@ gg.dat<- tibble(x=0:11) |>
          PMF1=daltbinom(x, size=11, prob=0.50, theta=1.0),
          PMF15= daltbinom(x, size=11, prob=0.50, theta=1.5)
         )
+
 # pivot long
 gg.long<- gg.dat |> 
     pivot_longer(
@@ -183,6 +184,7 @@ gg.long<- gg.dat |>
     names_to="theta",
     values_to="PMF"
   )
+
 # plot
 PMF.plot<-ggplot(gg.long) +
   geom_linerange(aes(x=x, ymin=0, ymax=PMF)) +
@@ -297,6 +299,7 @@ prem.dat.cleaned <-prem.dat |>
   separate(Score, into=c("WinnerLegs","LoserLegs"), sep="-") # seperated by -
 
 head(prem.dat.cleaned)
+
 # summary
 summary.dat <- prem.dat.cleaned |>
   count(WinnerLegs, LoserLegs) |> # frequency
@@ -329,6 +332,7 @@ theta_estims<- rep(NA, length(players))
 
 # Define negative log-likelihood function for Altham's multiplicative binom
 l.likely<- function(par, x, size, neg = FALSE){
+
   # transformations for parameters
   p<- 1 / (1 + exp(-par[1]))
   theta<- exp(par[2])
@@ -373,6 +377,8 @@ results <- tibble(
 
 **Comments**
 
+The players with higher estimated `p` values generally seem to match the stronger players in the standings, since a larger `p` means they were more likely to win legs overall while players with lower `p` values were usually the ones lower down the table, since they won fewer legs on average. The `theta` values control the pattern and  how spread out the wins were. Players with smaller `theta` values tended to have results that were more uneven, while players with larger `theta` had matches that were more balanced. 
+
 ## Altham's Multiplicative Beta Binomial Distribution
 
 For each player in the 2024 season, use the number of legs won in each match to compute maxmium likelihood estimates for $p$ and $\theta$.\
@@ -405,14 +411,14 @@ beta_mean<- rep(NA, length(players))
 beta_sd<- rep(NA, length(players))
 
 # negative log-likelihood for Altham multiplicative beta-binom
-l.likely.bb <- function(par, x, neg = FALSE){
+l.likely.bb<- function(par, x, neg = FALSE){
   # transformations
-  alpha <- exp(par[1])
-  beta  <- exp(par[2])
-  theta <- exp(par[3])
+  alpha<- exp(par[1])
+  beta<- exp(par[2])
+  theta<- exp(par[3])
   
   # calculate prob for 0:6
-  probs <- sapply(0:6, daltbbinom.single, size=11, alpha=alpha, beta=beta, theta=theta)
+  probs<- sapply(0:6, daltbbinom.single, size=11, alpha=alpha, beta=beta, theta=theta)
   # log-likelihood
   ll<- sum(log(probs[x+1]))
   ifelse(neg, -ll, ll)
@@ -420,20 +426,21 @@ l.likely.bb <- function(par, x, neg = FALSE){
 
 # loop through players
 for(i in 1:length(players)){
-  player <- players[i]
+  player<- players[i]
 
   # matches
-  matches <- prem.dat.cleaned |>
+  matches<- prem.dat.cleaned |>
     filter(Winner == player | Loser == player)
 
   # legs won
-  legs_won <- as.numeric(if_else(matches$Winner==player, matches$WinnerLegs, matches$LoserLegs))
-  # fit model
-  fit <- optim( par=c(0, 0, 0), fn=l.likely.bb, x=legs_won, neg=TRUE)
+  legs_won<- as.numeric(if_else(matches$Winner==player, matches$WinnerLegs, matches$LoserLegs))
+  # MLE with optim
+  res<- optim( par=c(0, 0, 0), fn=l.likely.bb, x=legs_won, neg=TRUE)
 
-  alpha_estims[i]<- exp(fit$par[1])
-  beta_estims[i]<- exp(fit$par[2])
-  theta_estims[i]<- exp(fit$par[3])
+  # convert and store in variable
+  alpha_estims[i]<- exp(res$par[1])
+  beta_estims[i]<- exp(res$par[2])
+  theta_estims[i]<- exp(res$par[3])
 
   # beta mean and sd
   beta_mean[i]<- alpha_estims[i]/(alpha_estims[i] + beta_estims[i])
@@ -442,7 +449,7 @@ for(i in 1:length(players)){
                       (alpha_estims[i] + beta_estims[i] + 1)))
 }
 
-# results tibble
+# results in tibble
 results<- tibble(
   Player=players,
   alpha=round(alpha_estims, 3),
@@ -456,3 +463,10 @@ results
 
 ## Executive Summary
 Summarize the work you've done here to provide a brief (200-300 word) data-driven summary of the 2024 Premier League season using your work in Lab 10. Your summary should be professional, clear, and all claims should be corroborated with statistical support.
+
+**Solution:**
+
+In the lab, I analysed match results from the Premier League season using Altham’s Multiplicative Binomial and Altham’s Multiplicative Beta-Binomial models. After cleaning the dataset by removing matches without scores and restricting the analysis to nights 1–16, I summarized the number of legs won in each match and used the values to estimate model parameters `p` and `theta` for each player.
+Using maximum likelihood estimation, I estimated the parameters `p` and `theta` for each player in the Altham Multiplicative Binomial model. The parameter p represents the player’s probability of winning a leg, so higher values of `p` show stronger overall performance. Players who finished higher in the standings had larger estimated `p` values, reflecting their higher likelihood of winning legs in that season while players lower in the standings had smaller `p` values, showing  fewer legs won on average.
+The `theta` values affect how the wins are spread across the legs in a match. Smaller `theta` values show results that are more uneven with blowout results being more likely. Larger `theta` values indicated outcomes that were more balanced, with results clustering closer to the middle and matches being more competitive.
+I also estimated parameters for the Altham Multiplicative Beta-Binomial model, which models the probability of winning a leg from a Beta distribution. The estimated Beta means and standard deviations provided additional information about player consistency. The models showed that stronger players win more legs on average and produce more consistent match outcomes compared to players lower in the standings.

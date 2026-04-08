@@ -434,6 +434,7 @@ for(i in 1:length(players)){
 
   # legs won
   legs_won<- as.numeric(if_else(matches$Winner==player, matches$WinnerLegs, matches$LoserLegs))
+  
   # MLE with optim
   res<- optim( par=c(0, 0, 0), fn=l.likely.bb, x=legs_won, neg=TRUE)
 
